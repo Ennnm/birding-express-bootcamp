@@ -1,0 +1,21 @@
+      <div class="form-row ">
+        <div class="col-md-4  input-group mt-3 mb-3">
+          <span class="input-group-text" >Date:</span>
+          <input type="date" class ="form-control" id="date" name="date" value=<%= date?`${date}`:`0000-00-00`%> />
+        </div>
+        <div class="col-md-4  input-group mt-3 mb-3">
+          <span class="input-group-text" >Time:</span>
+          <input type="time" class ="form-control" id="time" name="time"  value=<%= time?`${time}`:"00:00:00" %> min="00:00"/>
+          </div>
+        <div class="col-md-4  input-group mt-3 mb-3">
+          <span class="input-group-text" >Behavior:</span>
+          <input type="text" class ="form-control" id="behavior" name="behavior" value ="<%= behavior%>" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="col-md-6 input-group mt-3 mb-3">
+          <span class="input-group-text" >Flock-size:</span>
+          <input type="number" class ="form-control" id="flock_size" name="flock_size" min=0 value ="<%= flock_size %>" />
+           </div>
+           </div>
+        <input class="btn btn-outline-secondary" style="margin-top: 1.6em; margin-bottom: 1.6em" type="submit" value="Submit">
