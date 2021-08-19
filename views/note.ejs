@@ -11,7 +11,9 @@
       <h6 class="text-primary">Note taker: <small><%= username%></small></h6>
        <% } %>
     <div class="btn-group">
-    <a href="/note/<%=id%>/edit" class="btn btn-outline-secondary btn-sm">Edit</a>
+    <% if(isEditable){ %> 
+      <a href="/note/<%=id%>/edit" class="btn btn-outline-secondary btn-sm">Edit</a>
+    <% } %> 
      <form
           action="/note/<%=id%>/delete?_method=DELETE"
           method="POST"

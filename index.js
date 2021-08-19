@@ -52,6 +52,7 @@ const acceptNewNote = (req, res) => {
 
 const renderNote = (req, res) => {
   const { id } = req.params;
+  const { user } = req.cookies;
   const whenSelected = (err, result) => {
     if (err)
     {
@@ -59,9 +60,11 @@ const renderNote = (req, res) => {
       res.status(503).send(result);
       return;
     }
+    const noteWriter = result.rows[0].username;
     const note = {
       ...result.rows[0],
       fav: false,
+      isEditable: noteWriter === user,
     };
     console.log('rendering note');
     res.render('note', note);
@@ -218,6 +221,39 @@ const logUserOut = (req, res) => {
   res.redirect('/');
 };
 
+const userNotes = (req, res) => {
+  const { id } = req.params;
+  const viewUserNotes = (err, result) => {
+    if (err)
+    {
+      console.log('error when viewing user notes', err.stack);
+    }
+    const obj = {
+      notes: result.rows,
+    };
+    res.render('index', obj);
+  };
+  const sqlQuery = `SELECT * FROM ${TABLE} WHERE user_id = ${id}`;
+  pool.query(sqlQuery, viewUserNotes);
+};
+
+const userList = (req, res) => {
+  const handleUsers = (err, result) => {
+    if (err)
+    {
+      console.log('Error on user listing', err.stack);
+      res.status(503).send('User list error');
+    }
+    const obj = {
+      users: result.rows,
+    };
+    res.render('users', obj);
+  };
+
+  const sqlQuery = `SELECT DISTINCT users.id, username FROM users RIGHT JOIN ${TABLE} ON users.id=${TABLE}.user_id WHERE ${TABLE}.user_id IS NOT NULL`;
+
+  pool.query(sqlQuery, handleUsers);
+};
 app.get('/note', createNote);
 app.post('/note', acceptNewNote);
 app.get('/note/:id', renderNote);
@@ -232,4 +268,7 @@ app.post('/signup', acceptSignUp);
 app.get('/login', loginForm);
 app.post('/login', acceptLogin);
 app.delete('/logout', logUserOut);
+// your notes
+app.get('/users/:id', userNotes);
+app.get('/users', userList);
 app.listen(3004);

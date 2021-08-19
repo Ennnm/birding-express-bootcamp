@@ -1,0 +1,11 @@
+<%- include('header', {title: `users`}); -%>
+  <body>
+    <%- include('nav'); -%>
+    <div class="container col-10 bg-light border mt-4 p-3">
+      <h6>Contributors:</h6>
+      <% users.forEach((user)=>{%>
+      <a href="/users/<%=user.id %>" class="btn btn-outline-secondary btn-sm" style="margin:0.2rem"><%=user.username %></a>
+      <% }) %>
+    </div>
+  </body>
+</html>
