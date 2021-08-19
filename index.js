@@ -1,5 +1,6 @@
 import express from 'express';
 import methodOverride from 'method-override';
+import cookieParser from 'cookie-parser';
 import moment from 'moment';
 import pg from 'pg';
 import jsSHA from 'jssha';
@@ -9,7 +10,7 @@ const app = express();
 
 app.use(methodOverride('_method'));
 app.set('view engine', 'ejs');
-// app.use(cookieParser());
+app.use(cookieParser());
 
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static('public'));
@@ -35,7 +36,7 @@ const createNote = (req, res) => {
 
 const acceptNewNote = (req, res) => {
   const obj = req.body;
-
+  const loggedUser = req.cookies['logged-in'] ? req.cookies.user : 'anon';
   const whenDoneWithAdd = (err, result) => {
     if (err) {
       console.log('Error while adding note', err.stack);
@@ -45,27 +46,28 @@ const acceptNewNote = (req, res) => {
     res.redirect(`/note/${result.rows[0].id}`);
   };
 
-  const sqlQuery = `INSERT INTO ${TABLE} (date, time, behavior, flock_size) VALUES ('${obj.date}', '${obj.time}', '${obj.behavior}', '${obj.flock_size}') RETURNING *`;
+  const sqlQuery = `INSERT INTO ${TABLE} (date, time, behavior, flock_size,  user_id) VALUES ('${obj.date}', '${obj.time}', '${obj.behavior}', '${obj.flock_size}', (SELECT id FROM users WHERE username= '${loggedUser}' )) RETURNING *`;
   pool.query(sqlQuery, whenDoneWithAdd);
 };
 
 const renderNote = (req, res) => {
+  const { id } = req.params;
   const whenSelected = (err, result) => {
     if (err)
     {
       console.log('Error when accessing note by id', err.stack);
-      res.status(503).send(result.rows);
+      res.status(503).send(result);
       return;
     }
     const note = {
       ...result.rows[0],
       fav: false,
     };
+    console.log('rendering note');
     res.render('note', note);
   };
 
-  const { id } = req.params;
-  const sqlQuery = `SELECT * FROM ${TABLE} WHERE id=${id}`;
+  const sqlQuery = `SELECT sightings.id, date, time, behavior, flock_size, user_id, username FROM ${TABLE}  LEFT JOIN users ON ${TABLE}.user_id = users.id WHERE sightings.id='${id}'`;
   pool.query(sqlQuery, whenSelected);
 };
 
@@ -88,6 +90,7 @@ const renderAllNotes = (req, res) => {
 
 const editNote = (req, res) => {
   const { id } = req.params;
+  console.log(id);
   const whenSelected = (err, result) => {
     if (err)
     {
@@ -210,9 +213,6 @@ const acceptLogin = (req, res) => {
 };
 
 const logUserOut = (req, res) => {
-  // console.log(req.baseUrl);
-  // console.log(req.originalUrl);
-
   res.cookie('logged-in', false);
   res.clearCookie('user');
   res.redirect('/');

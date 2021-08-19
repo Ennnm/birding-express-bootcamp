@@ -6,3 +6,7 @@ INSERT INTO sightings (date, time, behavior, flock_size) VALUES ('2020-08-01',  
 INSERT INTO sightings (date, time, behavior, flock_size) VALUES ('2020-01-01',  '08:00:00', 'flying', 3 );
 
 CREATE TABLE users (id SERIAL PRIMARY KEY, username TEXT, password TEXT);
+
+ALTER TABLE sightings ADD user_id INTEGER;
+
+SELECT * FROM sightings INNER JOIN users  ON sightings.user_id = users.id WHERE users.id=1;

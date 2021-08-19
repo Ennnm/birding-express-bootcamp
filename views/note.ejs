@@ -5,11 +5,11 @@
       <%- include('note-header', {behavior, date, time, flock_size}); -%>
       <p class= "text-justify text-primary">Laborum consectetur voluptate Lorem deserunt. Mollit minim sunt est in pariatur elit. Irure qui dolor nostrud ex et anim. Et eiusmod veniam velit irure est commodo. Dolore nulla aute eu consectetur eiusmod labore excepteur Lorem minim commodo. Enim velit ea cillum minim nostrud.</p>
       <% if(locals.reported){ %>
-        <h6 class="text-primary">Reported: <%= reported%></h6>
-        <% } %>  
-        
-
-
+      <h6 class="text-primary">Reported: <%= reported%></h6>
+      <% } %>
+      <% if(locals.username){ %>
+      <h6 class="text-primary">Note taker: <small><%= username%></small></h6>
+       <% } %>
     <div class="btn-group">
     <a href="/note/<%=id%>/edit" class="btn btn-outline-secondary btn-sm">Edit</a>
      <form
