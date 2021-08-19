@@ -2,6 +2,7 @@ import express from 'express';
 import methodOverride from 'method-override';
 import moment from 'moment';
 import pg from 'pg';
+import jsSHA from 'jssha';
 
 const { Pool } = pg;
 const app = express();
@@ -23,7 +24,7 @@ const TABLE = 'sightings';
 
 const pool = new Pool(pgConnectionConfigs);
 
-const renderCreateForm = (req, res) => {
+const createNote = (req, res) => {
   console.log('request came in');
   const emptyNote = {
     title: 'New birding note',
@@ -38,10 +39,10 @@ const acceptNewNote = (req, res) => {
   const whenDoneWithAdd = (err, result) => {
     if (err) {
       console.log('Error while adding note', err.stack);
-      res.status(503).send(result.rows);
+      res.status(503).send(result);
       return;
     }
-    res.send(result.rows);
+    res.redirect(`/note/${result.rows[0].id}`);
   };
 
   const sqlQuery = `INSERT INTO ${TABLE} (date, time, behavior, flock_size) VALUES ('${obj.date}', '${obj.time}', '${obj.behavior}', '${obj.flock_size}') RETURNING *`;
@@ -56,7 +57,11 @@ const renderNote = (req, res) => {
       res.status(503).send(result.rows);
       return;
     }
-    res.send(result.rows);
+    const note = {
+      ...result.rows[0],
+      fav: false,
+    };
+    res.render('note', note);
   };
 
   const { id } = req.params;
@@ -73,11 +78,10 @@ const renderAllNotes = (req, res) => {
       res.status(503).send(result.rows);
       return;
     }
-    // res.send(result.rows);
+    console.log(result.rows);
     const obj = {
       notes: result.rows,
     };
-    console.log(result.rows);
     res.render('index', obj);
   });
 };
@@ -140,13 +144,92 @@ const deleteNote = (req, res) => {
   pool.query(sqlQuery, whenDeleted);
 };
 
-app.get('/note', renderCreateForm);
+const signUpForm = (req, res) => {
+  const obj = {
+    title: 'Sign up',
+    action: '/signup',
+  };
+  res.render('login', obj);
+};
+
+const hashItem = (text) => {
+  const shaObj = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
+  shaObj.update(text);
+  return shaObj.getHash('HEX');
+};
+
+const acceptSignUp = (req, res) => {
+  // check if username alr existing
+  // alert if existing, prompt to use another one
+  const hashedPassword = hashItem(req.body.password);
+  const values = [req.body.username, hashedPassword];
+
+  const sqlQuery = 'INSERT INTO users (username, password) VALUES ($1, $2) RETURNING *';
+  pool.query(sqlQuery, values, (err, result) => {
+    if (err)
+    {
+      console.log('error with signup', err.stack);
+      res.status(503).send(result);
+    }
+    console.log(result.rows);
+    res.redirect('/');
+  });
+};
+const loginForm = (req, res) => {
+  const obj = {
+    title: 'login',
+    action: '/login',
+  };
+  res.render('login', obj);
+};
+
+const acceptLogin = (req, res) => {
+  const whenLogIn = (err, result) => {
+    if (err)
+    {
+      console.log('error when logging in', err.stack);
+      res.status(503).send(result);
+    }
+    if (result.rows.length === 0)
+    {
+      console.log('username does not exist');
+      res.redirect('/login');
+    }
+    if (result.rows[0].password !== hashItem(req.body.password))
+    {
+      console.log('invalid password');
+      res.redirect('/login');
+    }
+    res.cookie('user', req.body.username);
+    res.cookie('logged-in', true);
+    // could redirect to user profile page/ page with all user notes
+    res.redirect('/');
+  };
+  const sqlQuery = `SELECT * FROM users WHERE username = '${req.body.username}'`;
+  pool.query(sqlQuery, whenLogIn);
+};
+
+const logUserOut = (req, res) => {
+  // console.log(req.baseUrl);
+  // console.log(req.originalUrl);
+
+  res.cookie('logged-in', false);
+  res.clearCookie('user');
+  res.redirect('/');
+};
+
+app.get('/note', createNote);
 app.post('/note', acceptNewNote);
 app.get('/note/:id', renderNote);
 app.get('/', renderAllNotes);
 app.get('/note/:id/edit', editNote);
 app.put('/note/:id/edit', acceptNoteEdit);
-
+app.get('/note.:id/fav', (req, res) => { res.status(404).send('No fav page yet'); });
 app.delete('/note/:id/delete', deleteNote);
-// test delete with "/sighting/<%=sight.id%>/delete?_method=DELETE"?? need a whole button to use?
+
+app.get('/signup', signUpForm);
+app.post('/signup', acceptSignUp);
+app.get('/login', loginForm);
+app.post('/login', acceptLogin);
+app.delete('/logout', logUserOut);
 app.listen(3004);

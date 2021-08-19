@@ -1,7 +1,7 @@
       <div class="form-row ">
         <div class="col-md-4  input-group mt-3 mb-3">
           <span class="input-group-text" >Date:</span>
-          <input type="date" class ="form-control" id="date" name="date" value=<%= date?`${date}`:`0000-00-00`%> />
+          <input type="date" class ="form-control" id="date" name="date" value=<%= date?`${date.toISOString().split('T')[0]}`:`0000-00-00`%> />
         </div>
         <div class="col-md-4  input-group mt-3 mb-3">
           <span class="input-group-text" >Time:</span>

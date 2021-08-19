@@ -5,13 +5,26 @@
         <a href="/" class="nav-link">Show All</a>
       </li>
       <li class="nav-item">
-        <a href="/shapes" class="nav-link">Shapes</a>
-      </li>
-      <li class="nav-item">
         <a href="/favs" class="nav-link">Favs</a>
       </li>
       <li class="nav-item">
-        <a href="/sighting" class="nav-link">Add</a>
+        <a href="/note" class="nav-link">Add</a>
+      </li>
+      <li class="nav-item">
+        <a href="/signup" class="nav-link">Sign-up</a>
+      </li>
+      <li class="nav-item">
+        <a href="/login" class="nav-link">Log-in</a>
+      </li>
+      <li class="nav-item">
+         <form
+            action="/logout?_method=DELETE"
+            method="POST"
+            class="d-inline-block"
+            id="form1"
+          >
+          <a href="javascript:;" onclick="document.getElementById('form1').submit();" class="nav-link" >Log-out</a>
+        </form>
       </li>
 
       <% if (locals.numVisitors){ %> 
