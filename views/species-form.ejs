@@ -1,0 +1,30 @@
+<%- include('header', {title: title }); -%>
+  <body>
+    <%- include('nav'); -%> 
+      <% if(locals.inputErr===true){ %>       
+        <div class="alert alert-danger alert-dismissible fade show"> 
+          <button type="button" class="close" data-dismiss="alert">&times;</button>
+          <strong>Invalid name or species name!</strong> <%=err %>
+        </div>
+      <%   } %> 
+    <div class='container col-10 bg-light border mt-4'>
+      <div class="">
+      <form action=<%=action %> method="POST" >
+      <div class="form-row ">
+        <div class="col-md-4  input-group mt-3 mb-3">
+          <span class="input-group-text" >Species name: </span>
+          <input type="text" class ="form-control" id="speciesName" name="speciesName" value ="<%= locals.speciesName%>" />
+        </div>
+                <div class="col-md-4  input-group mt-3 mb-3">
+          <span class="input-group-text" >Scientific name: </span>
+          <input type="text" class ="form-control" id="scientificName" name="scientificName" value ="<%= locals.scientificName%>" />
+        </div>
+      </div>
+      <div class="form-row">
+        <input class="btn btn-outline-secondary" style="margin-top: 1.6em; margin-bottom: 1.6em" type="submit" value="Submit">
+      </form>
+      </div>
+  </body>
+</html>
+
+

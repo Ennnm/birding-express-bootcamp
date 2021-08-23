@@ -1,0 +1,11 @@
+<%- include('header', {title: `species`}); -%>
+  <body>
+    <%- include('nav'); -%>
+    <div class="container col-10 bg-light border mt-4 p-3">
+      <h6>Species:</h6>
+      <% behaviors.forEach((b)=>{%>
+      <a href="/behaviours/<%=b.id %>" class="btn btn-outline-secondary btn-sm" style="margin:0.2rem"><%=b.behavior %></a>
+      <% }) %>
+    </div>
+  </body>
+</html>

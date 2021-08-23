@@ -2,7 +2,7 @@
   <body >
    <%- include('nav', locals.numVisitors); -%>
    <div class=" card-columns">
-    <% notes.forEach((note, index)=>{%>
+    <% locals.notes.forEach((note, index)=>{%>
       <div class= "">
         <div class="card bg-light border d-inline-block " id="item-<%=note.id%>">
           <div class="card-body">
@@ -16,13 +16,13 @@
                 method="POST"
                 class="d-inline-block"
               >
-                <input
-                  type="submit"
-                  value="Delete"
-                  id="delete"
-                  class="btn btn-outline-secondary btn-sm" style="border-radius: 0"
-        
-                />
+              <input
+                type="submit"
+                value="Delete"
+                id="delete"
+                class="btn btn-outline-secondary btn-sm"style="border-radius: 0"
+      
+              />
         
               </form>
   

@@ -4,6 +4,9 @@ import cookieParser from 'cookie-parser';
 import moment from 'moment';
 import pg from 'pg';
 import jsSHA from 'jssha';
+import dotenv from 'dotenv';
+
+dotenv.config({ silent: process.env.NODE_ENV === 'production' });
 
 const { Pool } = pg;
 const app = express();
@@ -25,34 +28,78 @@ const TABLE = 'sightings';
 
 const pool = new Pool(pgConnectionConfigs);
 
+// const SALT = 'saltsalt';
+
+const { SALT } = process.env;
+
+let user;
+const hashItem = (text) => {
+  const shaObj = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
+  shaObj.update(text);
+  return shaObj.getHash('HEX');
+};
+
 const createNote = (req, res) => {
   console.log('request came in');
-  const emptyNote = {
-    title: 'New birding note',
-    action: '/note',
-  };
-  res.render('edit', emptyNote);
+
+  let sqlQuery = 'SELECT * FROM behaviors';
+  pool.query(sqlQuery, (err, behaviors) => {
+    if (err) throw err;
+
+    sqlQuery = 'SELECT * FROM species';
+    pool.query(sqlQuery, (err, result) => {
+      if (err) throw err;
+      const emptyNote = {
+        species: result.rows,
+        title: 'New birding note',
+        action: '/note',
+        behaviors: behaviors.rows,
+
+      };
+      res.render('edit', emptyNote);
+    });
+  });
 };
 
 const acceptNewNote = (req, res) => {
   const obj = req.body;
-  const loggedUser = req.cookies['logged-in'] ? req.cookies.user : 'anon';
-  const whenDoneWithAdd = (err, result) => {
+  const loggedUser = req.cookies['logged-in'] ? user : 'anon';
+  console.log('user', loggedUser);
+
+  const behaviors = Array.isArray(obj.behavoir_ids) ? obj.behavoir_ids : [obj.behavoir_ids];
+  console.log(behaviors);
+  let sqlQuery = `INSERT INTO ${TABLE} (date, time, flock_size, species_id,  user_id) VALUES ('${obj.date}', '${obj.time}', '${obj.flock_size}', ${obj.species_id}, (SELECT id FROM users WHERE username= '${loggedUser}')) RETURNING id`;
+  pool.query(sqlQuery, (err, result) => {
     if (err) {
       console.log('Error while adding note', err.stack);
       res.status(503).send(result);
       return;
     }
-    res.redirect(`/note/${result.rows[0].id}`);
-  };
+    const sightingId = result.rows[0].id;
+    let numQueries = 0;
+    sqlQuery = 'INSERT INTO behavior_sighting (sight_id, behavior_id) VALUES ($1, $2) RETURNING *';
+    behaviors.forEach((b) => {
+      const values = [sightingId, b];
+      pool.query(sqlQuery, values, (err2, result2) => {
+        if (err2) throw err2;
 
-  const sqlQuery = `INSERT INTO ${TABLE} (date, time, behavior, flock_size,  user_id) VALUES ('${obj.date}', '${obj.time}', '${obj.behavior}', '${obj.flock_size}', (SELECT id FROM users WHERE username= '${loggedUser}' )) RETURNING *`;
-  pool.query(sqlQuery, whenDoneWithAdd);
+        numQueries += 1;
+        console.log(result2.rows[0]);
+        if (numQueries === behaviors.length)
+        {
+          res.redirect(`/note/${sightingId}`);
+        }
+      });
+    });
+  });
 };
 
 const renderNote = (req, res) => {
   const { id } = req.params;
   const { user } = req.cookies;
+
+  let sqlQuery = `SELECT sightings.id, date, time, flock_size, user_id, username FROM ${TABLE}  LEFT JOIN users ON ${TABLE}.user_id = users.id WHERE sightings.id='${id}'`;
+
   const whenSelected = (err, result) => {
     if (err)
     {
@@ -61,21 +108,26 @@ const renderNote = (req, res) => {
       return;
     }
     const noteWriter = result.rows[0].username;
-    const note = {
-      ...result.rows[0],
-      fav: false,
-      isEditable: noteWriter === user,
-    };
-    console.log('rendering note');
-    res.render('note', note);
+    sqlQuery = 'SELECT behaviors.behavior FROM behavior_sighting INNER JOIN behaviors ON behaviors.id = behavior_sighting.behavior_id WHERE sight_id = $1';
+    pool.query(sqlQuery, [id], (err2, result2) => {
+      const behaviors = result2.rows.map((b) => b.behavior);
+      const behavStr = Array.isArray(behaviors) ? behaviors.join(', ') : behaviors;
+      const note = {
+        ...result.rows[0],
+        fav: false,
+        isEditable: hashItem(noteWriter + SALT) === user,
+        behavior: behavStr,
+      };
+      console.log('rendering note');
+      res.render('note', note);
+    });
   };
 
-  const sqlQuery = `SELECT sightings.id, date, time, behavior, flock_size, user_id, username FROM ${TABLE}  LEFT JOIN users ON ${TABLE}.user_id = users.id WHERE sightings.id='${id}'`;
   pool.query(sqlQuery, whenSelected);
 };
 
 const renderAllNotes = (req, res) => {
-  const sqlQuery = `SELECT * FROM ${TABLE}`;
+  const sqlQuery = ' SELECT sightings.id, joinedBehavior.behavior, sightings.date, sightings.time, sightings.flock_size, sightings.user_id, sightings.species_id  FROM (SELECT * FROM behavior_sighting INNER JOIN behaviors ON behaviors.id = behavior_sighting.behavior_id) AS joinedBehavior  INNER JOIN sightings ON sightings.id = joinedBehavior.sight_id;';
   pool.query(sqlQuery, (err, result) => {
     if (err)
     {
@@ -86,6 +138,7 @@ const renderAllNotes = (req, res) => {
     console.log(result.rows);
     const obj = {
       notes: result.rows,
+
     };
     res.render('index', obj);
   });
@@ -142,6 +195,7 @@ const deleteNote = (req, res) => {
     {
       console.log('Error when deleting', err.stack);
       res.status(503).send(result);
+      return;
     }
     res.redirect('/');
   };
@@ -158,16 +212,10 @@ const signUpForm = (req, res) => {
   res.render('login', obj);
 };
 
-const hashItem = (text) => {
-  const shaObj = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
-  shaObj.update(text);
-  return shaObj.getHash('HEX');
-};
-
 const acceptSignUp = (req, res) => {
   // check if username alr existing
   // alert if existing, prompt to use another one
-  const hashedPassword = hashItem(req.body.password);
+  const hashedPassword = hashItem(req.body.password + SALT);
   const values = [req.body.username, hashedPassword];
 
   const sqlQuery = 'INSERT INTO users (username, password) VALUES ($1, $2) RETURNING *';
@@ -176,6 +224,7 @@ const acceptSignUp = (req, res) => {
     {
       console.log('error with signup', err.stack);
       res.status(503).send(result);
+      return;
     }
     console.log(result.rows);
     res.redirect('/');
@@ -195,18 +244,24 @@ const acceptLogin = (req, res) => {
     {
       console.log('error when logging in', err.stack);
       res.status(503).send(result);
+      return;
     }
+    console.log(result.rows);
     if (result.rows.length === 0)
     {
       console.log('username does not exist');
       res.redirect('/login');
+      return;
     }
-    if (result.rows[0].password !== hashItem(req.body.password))
+    if (result.rows[0].password !== hashItem(req.body.password + SALT))
     {
       console.log('invalid password');
       res.redirect('/login');
+      return;
     }
-    res.cookie('user', req.body.username);
+    user = req.body.username;
+    const hashedUser = hashItem(req.body.username + SALT);
+    res.cookie('user', hashedUser);
     res.cookie('logged-in', true);
     // could redirect to user profile page/ page with all user notes
     res.redirect('/');
@@ -216,6 +271,7 @@ const acceptLogin = (req, res) => {
 };
 
 const logUserOut = (req, res) => {
+  user = '';
   res.cookie('logged-in', false);
   res.clearCookie('user');
   res.redirect('/');
@@ -254,6 +310,95 @@ const userList = (req, res) => {
 
   pool.query(sqlQuery, handleUsers);
 };
+
+const newSpecies = (req, res) => {
+  console.log('request came in');
+  const emptySpecies = {
+    title: 'New species',
+    action: '/species',
+  };
+  res.render('species-form', emptySpecies);
+};
+
+const acceptNewSpecies = (req, res) => {
+  const obj = req.body;
+  const whenDoneSpeciesAdd = (err, result) => {
+    if (err) {
+      console.log('Error while adding species', err.stack);
+      res.status(503).send(result);
+      return;
+    }
+    res.redirect(`/species/${result.rows[0].id}`);
+  };
+
+  const sqlQuery = `INSERT INTO species (name, scientific_name) VALUES ('${obj.name}', '${obj.scientificName}') RETURNING id`;
+  pool.query(sqlQuery, whenDoneSpeciesAdd);
+};
+
+const renderSpecies = (req, res) => {
+  const { index } = req.params;
+
+  const sqlQuery = 'SELECT * FROM species WHERE id = $1';
+  pool.query(sqlQuery, [...index], (err, result) => {
+    if (err)
+    {
+      console.log('error when accessing species', err.stack);
+      return;
+    }
+
+    res.render('one-species', result.rows[0]);
+  });
+};
+
+const renderAllSpecies = (req, res) => {
+  const sqlQuery = 'SELECT * FROM species';
+  pool.query(sqlQuery, (err, result) => {
+    if (err)
+    {
+      console.log('Error when accessing species index', err.stack);
+      res.status(503).send(result.rows);
+      return;
+    }
+    console.log(result.rows);
+    const obj = {
+      species: result.rows,
+    };
+    console.log(obj);
+    res.render('specieses', obj);
+  });
+};
+
+const renderBehaviors = (req, res) =>
+{
+  const sqlQuery = 'SELECT * FROM behavior_sighting INNER JOIN behaviors ON behavior_sighting.behavior_id=behaviors.id';
+  pool.query(sqlQuery, (err, result) => {
+    const obj = {
+      behaviors: result.rows,
+    };
+    console.log(obj);
+    res.render('behaviors', obj);
+  });
+};
+
+const behaviorSighting = (req, res) => {
+  const { id } = req.params;
+
+  const sqlQuery = `SELECT sightings.id, joinedBehavior.behavior, sightings.date, sightings.time, sightings.flock_size, sightings.user_id, sightings.species_id FROM (SELECT behavior, sight_id  FROM behavior_sighting INNER JOIN behaviors ON behaviors.id = behavior_sighting.behavior_id WHERE behaviors.id=${id}) AS joinedBehavior  INNER JOIN sightings ON sightings.id = joinedBehavior.sight_id`;
+  pool.query(sqlQuery, (err, result) => {
+    if (err)
+    {
+      console.log('Error when accessing notes', err.stack);
+      res.status(503).send(result.rows);
+      return;
+    }
+    console.log(result.rows);
+    const obj = {
+      notes: result.rows,
+
+    };
+    res.render('index', obj);
+  });
+};
 app.get('/note', createNote);
 app.post('/note', acceptNewNote);
 app.get('/note/:id', renderNote);
@@ -271,4 +416,18 @@ app.delete('/logout', logUserOut);
 // your notes
 app.get('/users/:id', userNotes);
 app.get('/users', userList);
+
+// POCE 7 Bird watching species
+app.get('/species', newSpecies);
+app.post('/species', acceptNewSpecies);
+app.get('/species/all', renderAllSpecies);
+app.get('/species/:index', renderSpecies);
+
+// app.get('/species/:index/edit', editSpecies);
+// app.put('/species/:index/edit', acceptSpeciesEdit);
+// app.delete('/species/:index/delete', deleteSpecies);
+
+// POCE 8 bird watching behavior
+app.get('/behaviours', renderBehaviors);
+app.get('/behaviours/:id', behaviorSighting);
 app.listen(3004);

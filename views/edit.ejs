@@ -10,7 +10,8 @@
     <div class='container col-10 bg-light border mt-4'>
       <div class="">
       <form action=<%=action %> method="POST" >
-        <%- include('form-note', {date:locals.date, time:locals.time, behavior:locals.behavior, flock_size:locals.flock_size}); -%>
+        <%- include('form-note', {date:locals.date, time:locals.time, behavior:locals.behavior, flock_size:locals.flock_size, 
+        behaviors: locals.behaviors}); -%>
       </form>
       </div>
   </body>
