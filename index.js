@@ -18,12 +18,29 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static('public'));
 
-const pgConnectionConfigs = {
-  user: 'en',
-  host: 'localhost',
-  database: 'birding',
-  port: 5432,
-};
+// create separate DB connection configs for production vs non-production environments.
+// ensure our server still works on our local machines.
+let pgConnectionConfigs;
+if (process.env.ENV === 'PRODUCTION') {
+  // determine how we connect to the remote Postgres server
+  pgConnectionConfigs = {
+    user: 'postgres',
+    // set DB_PASSWORD as an environment variable for security.
+    password: process.env.DB_PASSWORD,
+    host: 'localhost',
+    database: 'birding',
+    port: 5432,
+  };
+} else {
+  // determine how we connect to the local Postgres server
+  pgConnectionConfigs = {
+    user: 'en',
+    host: 'localhost',
+    database: 'birding',
+    port: 5432,
+  };
+}
+
 const TABLE = 'sightings';
 
 const pool = new Pool(pgConnectionConfigs);
@@ -493,4 +510,5 @@ app.get('/species/:index', renderSpecies);
 // POCE 8 bird watching behavior
 app.get('/behaviours', renderBehaviors);
 app.get('/behaviours/:id', behaviorSighting);
-app.listen(3004);
+const PORT = process.argv[2];
+app.listen(PORT);
