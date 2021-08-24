@@ -32,7 +32,7 @@ const pool = new Pool(pgConnectionConfigs);
 
 const { SALT } = process.env;
 
-let user;
+let loggedInUser;
 const hashItem = (text) => {
   const shaObj = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
   shaObj.update(text);
@@ -63,7 +63,7 @@ const createNote = (req, res) => {
 
 const acceptNewNote = (req, res) => {
   const obj = req.body;
-  const loggedUser = req.cookies['logged-in'] ? user : 'anon';
+  const loggedUser = req.cookies['logged-in'] ? loggedInUser : 'anon';
   console.log('user', loggedUser);
 
   const behaviors = Array.isArray(obj.behavoir_ids) ? obj.behavoir_ids : [obj.behavoir_ids];
@@ -98,49 +98,86 @@ const renderNote = (req, res) => {
   const { id } = req.params;
   const { user } = req.cookies;
 
-  let sqlQuery = `SELECT sightings.id, date, time, flock_size, user_id, username FROM ${TABLE}  LEFT JOIN users ON ${TABLE}.user_id = users.id WHERE sightings.id='${id}'`;
+  let sqlQuery = 'SELECT comment, username FROM comments INNER JOIN users ON commenter_id=users.id INNER JOIN sightings ON sightings.id = comments.sight_id WHERE sightings.id=$1 ORDER BY comments.id ASC';
+  pool.query(sqlQuery, [id], (err3, result3) => {
+    if (err3) throw err3;
+    console.log('result 3', result3.rows);
+    const comments = result3.rows;
+    sqlQuery = `SELECT sightings.id, date, time, flock_size, user_id, username FROM sightings LEFT JOIN users ON sightings.user_id = users.id WHERE sightings.id='${id}'`;
 
-  const whenSelected = (err, result) => {
-    if (err)
-    {
-      console.log('Error when accessing note by id', err.stack);
-      res.status(503).send(result);
-      return;
-    }
-    const noteWriter = result.rows[0].username;
-    sqlQuery = 'SELECT behaviors.behavior FROM behavior_sighting INNER JOIN behaviors ON behaviors.id = behavior_sighting.behavior_id WHERE sight_id = $1';
-    pool.query(sqlQuery, [id], (err2, result2) => {
-      const behaviors = result2.rows.map((b) => b.behavior);
-      const behavStr = Array.isArray(behaviors) ? behaviors.join(', ') : behaviors;
-      const note = {
-        ...result.rows[0],
-        fav: false,
-        isEditable: hashItem(noteWriter + SALT) === user,
-        behavior: behavStr,
-      };
-      console.log('rendering note');
-      res.render('note', note);
+    const whenSelected = (err, result) => {
+      if (err)
+      {
+        console.log('Error when accessing note by id', err.stack);
+        res.status(503).send(result);
+        return;
+      }
+      const noteWriter = result.rows[0].username;
+      sqlQuery = 'SELECT behaviors.behavior FROM behavior_sighting INNER JOIN behaviors ON behaviors.id = behavior_sighting.behavior_id WHERE sight_id = $1';
+      pool.query(sqlQuery, [id], (err2, result2) => {
+        const behaviors = result2.rows.map((b) => b.behavior);
+        const behavStr = Array.isArray(behaviors) ? behaviors.join(', ') : behaviors;
+        const note = {
+          ...result.rows[0],
+          fav: false,
+          isEditable: hashItem(noteWriter + SALT) === user,
+          behavior: behavStr,
+          comments,
+        };
+        console.log('rendering note');
+        res.render('note', note);
+      });
+    };
+    pool.query(sqlQuery, whenSelected);
+  });
+};
+
+const createNoteComment = (req, res) => {
+  const { comment } = req.body;
+  const { id } = req.params;
+
+  let sqlQuery = 'SELECT id FROM users WHERE username=$1';
+  pool.query(sqlQuery, [loggedInUser], (err2, result2) => {
+    if (err2) throw err2;
+    const index = result2.rows.length === 0 ? 0 : result2.rows[0].id;
+    sqlQuery = 'INSERT INTO comments (sight_id, comment, commenter_id) VALUES ($1, $2, $3) RETURNING *';
+
+    pool.query(sqlQuery, [id, comment, index], (err, result) => {
+      if (err) throw err;
+      console.log(result.rows);
+      res.redirect(`/note/${id}`);
     });
-  };
-
-  pool.query(sqlQuery, whenSelected);
+  });
 };
 
 const renderAllNotes = (req, res) => {
-  const sqlQuery = ' SELECT sightings.id, joinedBehavior.behavior, sightings.date, sightings.time, sightings.flock_size, sightings.user_id, sightings.species_id  FROM (SELECT * FROM behavior_sighting INNER JOIN behaviors ON behaviors.id = behavior_sighting.behavior_id) AS joinedBehavior  INNER JOIN sightings ON sightings.id = joinedBehavior.sight_id;';
+  let sqlQuery = ' SELECT * FROM  sightings';
   pool.query(sqlQuery, (err, result) => {
     if (err)
     {
-      console.log('Error when accessing notes', err.stack);
-      res.status(503).send(result.rows);
-      return;
+      console.log('error when viewing user notes', err.stack);
     }
-    console.log(result.rows);
-    const obj = {
-      notes: result.rows,
+    const sightings = result.rows;
+    let queriesCompleted = 0;
+    sightings.forEach((sight) => {
+      sqlQuery = 'SELECT behaviors.behavior FROM behaviors INNER JOIN behavior_sighting ON behaviors.id = behavior_sighting.behavior_id WHERE behavior_sighting.sight_id= $1';
 
-    };
-    res.render('index', obj);
+      pool.query(sqlQuery, [sight.id], (err2, result2) => {
+        if (err2) throw err2;
+        console.log('result2', result2.rows);
+        sight.behavior = result2.rows.map((item) => item.behavior);
+        queriesCompleted += 1;
+
+        if (queriesCompleted === sightings.length)
+        {
+          const obj = {
+            notes: sightings,
+          };
+          console.log(obj);
+          res.render('index', obj);
+        }
+      });
+    });
   });
 };
 
@@ -259,7 +296,7 @@ const acceptLogin = (req, res) => {
       res.redirect('/login');
       return;
     }
-    user = req.body.username;
+    loggedInUser = req.body.username;
     const hashedUser = hashItem(req.body.username + SALT);
     res.cookie('user', hashedUser);
     res.cookie('logged-in', true);
@@ -271,7 +308,7 @@ const acceptLogin = (req, res) => {
 };
 
 const logUserOut = (req, res) => {
-  user = '';
+  loggedInUser = '';
   res.cookie('logged-in', false);
   res.clearCookie('user');
   res.redirect('/');
@@ -279,18 +316,43 @@ const logUserOut = (req, res) => {
 
 const userNotes = (req, res) => {
   const { id } = req.params;
-  const viewUserNotes = (err, result) => {
+
+  let sqlQuery = `SELECT * FROM sightings WHERE user_id = ${id}`;
+  pool.query(sqlQuery, (err, result) => {
     if (err)
     {
       console.log('error when viewing user notes', err.stack);
     }
-    const obj = {
-      notes: result.rows,
-    };
-    res.render('index', obj);
-  };
-  const sqlQuery = `SELECT * FROM ${TABLE} WHERE user_id = ${id}`;
-  pool.query(sqlQuery, viewUserNotes);
+    const sightings = result.rows;
+    sqlQuery = 'SELECT * FROM comments WHERE commenter_id = $1';
+    pool.query(sqlQuery, [id], (err3, result3) => {
+      if (err3) throw err3;
+      const comments = result3.rows;
+      console.log(comments);
+
+      let queriesCompleted = 0;
+      sightings.forEach((sight) => {
+        sqlQuery = 'SELECT behaviors.behavior FROM behaviors INNER JOIN behavior_sighting ON behaviors.id = behavior_sighting.behavior_id WHERE behavior_sighting.sight_id= $1';
+
+        pool.query(sqlQuery, [sight.id], (err2, result2) => {
+          if (err2) throw err2;
+          console.log('result2', result2.rows);
+          sight.behavior = result2.rows.map((item) => item.behavior);
+          queriesCompleted += 1;
+
+          if (queriesCompleted === sightings.length)
+          {
+            const obj = {
+              notes: sightings,
+              comments,
+            };
+            console.log(obj);
+            res.render('index', obj);
+          }
+        });
+      });
+    });
+  });
 };
 
 const userList = (req, res) => {
@@ -402,6 +464,7 @@ const behaviorSighting = (req, res) => {
 app.get('/note', createNote);
 app.post('/note', acceptNewNote);
 app.get('/note/:id', renderNote);
+app.post('/note/:id/comment', createNoteComment);
 app.get('/', renderAllNotes);
 app.get('/note/:id/edit', editNote);
 app.put('/note/:id/edit', acceptNoteEdit);

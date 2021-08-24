@@ -10,6 +10,21 @@
       <% if(locals.username){ %>
       <h6 class="text-primary">Note taker: <small><%= username%></small></h6>
        <% } %>
+       <!-- list of comments -->
+       <% if(locals.comments.length>0){ %> 
+        <h5 class="">Comments:</h5>
+        <% comments.forEach(comment => { %>
+          <h6 class="text-primary"><%= comment.username%>: <small><%= comment.comment %></small></h6>
+       <% }) %> 
+        <% } %> 
+      <form action="/note/<%=id %>/comment" method="POST">
+        <div class="input-group mt-3 mb-3">
+          <span class="input-group-text">Comment :</span>
+          <textarea class ="form-control" rows ="4" id="comment" name="comment" value="<%= locals.comment %>" ><%= locals.comment %></textarea>
+            <button type="submit" class="btn btn-outline-secondary btn-sm">Submit</button>
+        </div>
+      
+      </form>
     <div class="btn-group">
     <% if(isEditable){ %> 
       <a href="/note/<%=id%>/edit" class="btn btn-outline-secondary btn-sm">Edit</a>

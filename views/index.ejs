@@ -3,11 +3,9 @@
    <%- include('nav', locals.numVisitors); -%>
    <div class=" card-columns">
     <% locals.notes.forEach((note, index)=>{%>
-      <div class= "">
         <div class="card bg-light border d-inline-block " id="item-<%=note.id%>">
           <div class="card-body">
             <%- include('note-header', note); -%>
-             
             <div class="btn-group flex-wrap">
               <a href="/note/<%=note.id%>"  class="btn btn-outline-secondary btn-sm stretched-link">Expand</a>
               <a href="/note/<%=note.id%>/edit"  class="btn btn-outline-secondary btn-sm">Edit</a>
@@ -21,15 +19,17 @@
                 value="Delete"
                 id="delete"
                 class="btn btn-outline-secondary btn-sm"style="border-radius: 0"
-      
               />
-        
               </form>
-  
               </div>
             </div>
        </div>
-    </div>
     <% }) %>
+    <% if(locals.comments){ %> 
+    <% comments.forEach(comment => { %>
+      <div class="text-primary">
+        <h6><small>Sighting: <%=comment.sight_id%> Comment: <%=comment.comment%></small></h6>
+      </div>
+    <% })} %> 
   </body>
 </html>
