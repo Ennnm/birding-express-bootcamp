@@ -45,8 +45,6 @@ const TABLE = 'sightings';
 
 const pool = new Pool(pgConnectionConfigs);
 
-// const SALT = 'saltsalt';
-
 const { SALT } = process.env;
 
 let loggedInUser;

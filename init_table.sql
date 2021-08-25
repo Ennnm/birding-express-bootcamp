@@ -1,9 +1,9 @@
-CREATE TABLE sightings (id SERIAL PRIMARY KEY, date DATE, time TIME, flock_size INTEGER, user_id, species_id );
+CREATE TABLE sightings (id SERIAL PRIMARY KEY, date DATE, time TIME, flock_size INTEGER, user_id INTEGER, species_id INTEGER);
 
--- INSERT INTO sightings (date, time, flock_size) VALUES ('2019-01-01',  '14:00:00', 15 );
--- INSERT INTO sightings (date, time, flock_size) VALUES ('2019-03-01',  '15:00:00', 1 );
--- INSERT INTO sightings (date, time, flock_size) VALUES ('2020-08-01',  '17:00:00', 4 );
--- INSERT INTO sightings (date, time, flock_size) VALUES ('2020-01-01',  '08:00:00', 3 );
+INSERT INTO sightings (date, time, flock_size, user_id, species_id) VALUES ('2019-01-01',  '14:00:00', 15, 1, 1);
+INSERT INTO sightings (date, time, flock_size, user_id, species_id) VALUES ('2019-03-01',  '15:00:00', 1 , 1, 2);
+INSERT INTO sightings (date, time, flock_size, user_id, species_id) VALUES ('2020-08-01',  '17:00:00', 4 , 1, 3);
+INSERT INTO sightings (date, time, flock_size, user_id, species_id) VALUES ('2020-01-01',  '08:00:00', 3 , 1, 4);
 
 CREATE TABLE users (id SERIAL PRIMARY KEY, username TEXT, password TEXT);
 
@@ -31,4 +31,4 @@ INSERT INTO behaviors (behavior) VALUES ('walking'),
 
 CREATE TABLE behavior_sighting (id SERIAL PRIMARY KEY, sight_id INTEGER, behavior_id INTEGER);
 
-CREATE TABLE comments (id SERIAL PRIMARY KEY, sight_id INTEGER, comment TEXT, FOREIGN KEY (sight_id) REFERENCES sightings(id));
+CREATE TABLE comments (id SERIAL PRIMARY KEY, sight_id INTEGER, comment TEXT, commenter_id INTEGER,FOREIGN KEY (sight_id) REFERENCES sightings(id));
