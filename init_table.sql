@@ -1,9 +1,9 @@
 DROP TABLE IF EXISTS sightings CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS species CASCADE;
-DROP TABLE IF EXISTS behavior CASCADE;
+DROP TABLE IF EXISTS behaviors CASCADE;
 DROP TABLE IF EXISTS behavior_sighting CASCADE;
-DROP TABLE IF EXISTS comments CASCASE;
+DROP TABLE IF EXISTS comments CASCADE;
 
 
 CREATE TABLE IF NOT EXISTS sightings (id SERIAL PRIMARY KEY, date DATE, time TIME, flock_size INTEGER, user_id INTEGER, species_id INTEGER);
@@ -14,9 +14,9 @@ INSERT INTO sightings (date, time, flock_size, user_id, species_id) VALUES ('202
 INSERT INTO sightings (date, time, flock_size, user_id, species_id) VALUES ('2020-01-01',  '08:00:00', 3 , 1, 4);
 
 CREATE TABLE users (id SERIAL PRIMARY KEY, username TEXT, password TEXT);
-INSERT INTO TABLE (id, username) VALUES (0, 'anon')
+INSERT INTO users (id, username) VALUES (0, 'anon');
 
-CREATE TABLE species IF NOT EXISTS (id SERIAL PRIMARY KEY, name TEXT, scientific_name TEXT);
+CREATE TABLE IF NOT EXISTS species  (id SERIAL PRIMARY KEY, name TEXT, scientific_name TEXT);
 
 INSERT INTO species  (name, scientific_name) VALUES ('King Quail', 'Excalfactoria chinensis');
 INSERT INTO species (name, scientific_name) VALUES ('Red Junglefowl', 'Gallus gallus');
