@@ -24,7 +24,7 @@ INSERT INTO species (name, scientific_name) VALUES ('Wandering Whistling Duck', 
 INSERT INTO species (name, scientific_name) VALUES ('Lesser Whistling Duck', 'Dendrocygna javanica');
 INSERT INTO species (name, scientific_name) VALUES ('Cotton Pygmy Goose', 'Nettapus coromandelianus');
 
-CREATE TABLE behaviors IF NOT EXISTS (id SERIAL PRIMARY KEY, behavior TEXT);
+CREATE TABLE IF NOT EXISTS behaviors (id SERIAL PRIMARY KEY, behavior TEXT);
 
 INSERT INTO behaviors (behavior) VALUES ('walking'),
                                         ('bathing'),
@@ -33,8 +33,8 @@ INSERT INTO behaviors (behavior) VALUES ('walking'),
                                         ('mobbing'),
                                         ('long song');
 
-CREATE TABLE behavior_sighting IF NOT EXISTS (id SERIAL PRIMARY KEY, sight_id INTEGER, behavior_id INTEGER);
+CREATE TABLE IF NOT EXISTS behavior_sighting(id SERIAL PRIMARY KEY, sight_id INTEGER, behavior_id INTEGER);
 
 INSERT INTO behavior_sighting (sight_id, behavior_id) VALUES (1,2), (1,5) , (2,6), (2,3), (3,3), (3,4), (4,1);
 
-CREATE TABLE comments IF NOT EXISTS (id SERIAL PRIMARY KEY, sight_id INTEGER, comment TEXT, commenter_id INTEGER,FOREIGN KEY (sight_id) REFERENCES sightings(id));
+CREATE TABLE IF NOT EXISTS comments (id SERIAL PRIMARY KEY, sight_id INTEGER, comment TEXT, commenter_id INTEGER,FOREIGN KEY (sight_id) REFERENCES sightings(id));
